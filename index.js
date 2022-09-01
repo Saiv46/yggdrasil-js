@@ -1,5 +1,7 @@
 const Yggdrasil = require('./src')
+const Address = require('./src/address')
 const Config = require('./src/utils/config')
+const { VERSION } = require('./src/utils/constants')
 
 async function main () {
   const config = await Config.generate()
@@ -8,6 +10,12 @@ async function main () {
   ]
 
   const ygg = new Yggdrasil(config)
+  console.log('Protocol: yggdrasil')
+  console.log('Protocol version:', ...VERSION)
+  console.log('IPv6 address:', Address.fromPublicKey(ygg.publicKey.toBuffer()).toString())
+  console.log('IPv6 subnet:', Address.subnetFromPublicKey(ygg.publicKey.toBuffer()).toString())
+  console.log('Public key:', ygg.publicKey.toString())
+  console.log('Coords:', [])
 }
 
 main()

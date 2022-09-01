@@ -88,6 +88,7 @@ class PeerInfo {
     this.info = url
     this.port = -1
     this.socket = null
+    this.remoteKey = null
     this.core = core
   }
 
@@ -95,15 +96,20 @@ class PeerInfo {
     const ac = new AbortController()
     setTimeout(() => ac.abort('Timeout'), 10_000)
     this.socket = socket ?? wire[this.info.protocol].connect(this.info)
+    /* DEBUG */
+    this.socket.on('data', data => console.log('socket', data.inspect()))
+    this.socket.on('error', err => console.error('socket', err))
+    /* DEBUG END */
     await once(this.socket, 'ready', { signal: ac.signal })
     this.socket.write(HEADER)
     this.socket.write(this.core.publicKey.toBuffer())
     const [header] = await once(this.socket, 'data', { signal: ac.signal })
     assert.ok(HEADER.compare(header, 0, HEADER.length) === 0, 'Invalid header (incompatible version?)')
+    this.remoteKey = header.subarray(HEADER.length)
     if (socket) {
-      assert.ok(this.core.publicKeyAllowed(header.slice(HEADER.length)), 'Not allowed public key')
+      assert.ok(this.core.publicKeyAllowed(this.remoteKey), 'Not allowed public key')
     } else {
-      assert.ok(this.info.hasValidPublicKey(header.slice(HEADER.length)), 'Invalid pinned public key')
+      assert.ok(this.info.hasValidPublicKey(this.remoteKey), 'Invalid pinned public key')
     }
     this.core.makeProtoHandler(this)
   }
