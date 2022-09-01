@@ -18,6 +18,13 @@ const packetTypeEnum = {
 }
 module.exports.packetTypeEnum = packetTypeEnum
 
+const trafficTypeEnum = {
+  wireTrafficDummy: 0,
+  wireTrafficStandard: 1,
+  wireTrafficOutOfBand: 2
+}
+module.exports.trafficTypeEnum = trafficTypeEnum
+
 class SenderMiddleware extends Transform {
   constructor (core, peer) {
     super()
@@ -34,15 +41,14 @@ class SenderMiddleware extends Transform {
 }
 
 class RecieverMiddleware extends Transform {
-  static treeInfoSize = 32 + 8
-  static treeHopSize = 32 + 8 + 64
-
   constructor (core, remote) {
     super()
     this.core = core
     this.remote = remote
   }
 
+  static treeInfoSize = 32 + 8
+  static treeHopSize = 32 + 8 + 64
   async handleTreeInfo (chunk) {
     // Check whatever we have enough bytes to read
     assert.ok(chunk.length >= RecieverMiddleware.treeInfoSize, 'wireDecodeError:wireProtoTree:treeInfo')
@@ -69,6 +75,23 @@ class RecieverMiddleware extends Transform {
       'wireDecodeError:wireProtoTree:pubkey'
     )
     // Verify signatures
+    // ironwood for some reason sign hops without previous signatures
+    const buf = Buffer.allocUnsafe(RecieverMiddleware.treeInfoSize + (32 + 8) * hops)
+    chunk.copy(buf, 0, 0, RecieverMiddleware.treeInfoSize)
+    for (let i = 0; i < hops; i++) {
+      chunk.copy(
+        buf,
+        RecieverMiddleware.treeInfoSize + (32 + 8) * i,
+        RecieverMiddleware.treeInfoSize + RecieverMiddleware.treeHopSize * i,
+        RecieverMiddleware.treeInfoSize + RecieverMiddleware.treeHopSize * i + 32 + 8
+      )
+      await ed25519.verify(
+        treeInfo.hops[i].sig,
+        buf.subarray(0, RecieverMiddleware.treeInfoSize + (32 + 8) * (i + 1)),
+        i ? treeInfo.hops[i - 1].next : treeInfo.root
+      )
+    }
+    /* // How it should be
     for (let i = 0; i < hops; i++) {
       await ed25519.verify(
         treeInfo.hops[i].sig,
@@ -76,6 +99,7 @@ class RecieverMiddleware extends Transform {
         i ? treeInfo.hops[i - 1].next : treeInfo.root
       )
     }
+    */
     this.core.dht.update(treeInfo)
   }
 
@@ -139,6 +163,14 @@ class RecieverMiddleware extends Transform {
     }
   }
 
+  readPathNotify (buf) {
+    return {
+      sig: buf.subarray(0, 64), // TODO? remove this? is it really useful for anything?...
+      dest: buf.subarray(64, 96), // Who to send the notify to
+      label: this.readTreeLabel(buf.subarray(96))
+    }
+  }
+
   handleDHTTeardown (chunk) {
     this.core.dht.handleTeardown({
       sig: chunk.readBigUInt64BE(0),
@@ -149,15 +181,46 @@ class RecieverMiddleware extends Transform {
   }
 
   handlePathNotify (chunk) {
-    this.core.dht.handleBootstrap({
-      sig: chunk.subarray(0, 64), // TODO? remove this? is it really useful for anything?...
-      dest: chunk.subarray(64, 96), // Who to send the notify to
-      label: this.readTreeLabel(chunk.subarray(96))
-    })
+    this.core.dht.handlePathNotify(this.readPathNotify(chunk))
   }
 
   handlePathLookup (chunk) {
+    const [length, start] = this.readVarInt(chunk)
+    this.core.dht.handlePathLookup({
+      notify: this.readPathNotify(chunk.slice(start, start + length)),
+      rpath: this.readPeerPort(chunk.slice(start + length))
+    })
+  }
 
+  handlePathResponse (chunk) {
+    const i = chunk.indexOf(0, 32)
+    this.core.dht.handlePathResponse({
+      // TODO? Needs sign
+      from: chunk.subarray(0, 32),
+      path: this.readPeerPort(chunk.subarray(32, i)),
+      rpath: this.readPeerPort(chunk.subarray(i))
+    })
+  }
+
+  readDHTTraffic (buf) {
+    return {
+      source: buf.subarray(0, 32),
+      dest: buf.subarray(32, 64),
+      kind: buf[64],
+      payload: buf.subarray(65)
+    }
+  }
+
+  handleDHTTraffic (chunk) {
+    this.core.dht.handleDHTTraffic(this.readDHTTraffic(chunk))
+  }
+
+  handlePathTraffic (chunk) {
+    const i = chunk.indexOf(0)
+    this.core.dht.handlePathTraffic({
+      path: this.readPeerPort(chunk.subarray(0, i)),
+      dt: this.readDHTTraffic(chunk.subarray(i))
+    })
   }
 
   _transform (chunk, _, cb) {
@@ -180,15 +243,19 @@ class RecieverMiddleware extends Transform {
         this.handleDHTTeardown(chunk.subarray(1))
         break
       case packetTypeEnum.wireProtoPathNotify:
-        this.handlePathNotify(chunk.subarray(1)) // TODO
+        this.handlePathNotify(chunk.subarray(1))
         break
-      case packetTypeEnum.wireProtoPathLookup: // TODO
+      case packetTypeEnum.wireProtoPathLookup:
+        this.handlePathLookup(chunk.subarray(1))
         break
-      case packetTypeEnum.wireProtoPathResponse: // TODO
+      case packetTypeEnum.wireProtoPathResponse:
+        this.handlePathResponse(chunk.subarray(1))
         break
-      case packetTypeEnum.wireDHTTraffic: // TODO
+      case packetTypeEnum.wireDHTTraffic:
+        this.handleDHTTraffic(chunk.subarray(1))
         break
-      case packetTypeEnum.wirePathTraffic: // TODO
+      case packetTypeEnum.wirePathTraffic:
+        this.handlePathTraffic(chunk.subarray(1))
         break
     }
     return cb()
