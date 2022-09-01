@@ -39,12 +39,13 @@ class SenderMiddleware extends Transform {
     return cb()
   }
 }
+module.exports.SenderMiddleware = SenderMiddleware
 
 class RecieverMiddleware extends Transform {
-  constructor (core, remote) {
+  constructor (core, peer) {
     super()
     this.core = core
-    this.remote = remote
+    this.peer = peer
   }
 
   static treeInfoSize = 32 + 8
@@ -57,21 +58,21 @@ class RecieverMiddleware extends Transform {
       seq: chunk.readBigUInt64BE(32), // sequence number
       hops: []
     }
-    assert.strictEqual((chunk.length - RecieverMiddleware.treeInfoSize) % RecieverMiddleware.treeHopSize, 0, 'wireDecodeError:wireProtoTree:treeHop')
     for (let i = RecieverMiddleware.treeInfoSize; i < chunk.length;) {
+      const [port, start] = this.readVarInt(chunk.subarray(i + 32))
       treeInfo.hops.push({
         next: chunk.subarray(i, i += 32),
-        port: chunk.readBigUInt64BE(i, i += 8),
+        port: (i += start, port), // FIXME: Need to change everything, that was not uint, but varint
         sig: chunk.subarray(i, i += 64)
       })
     }
-    const hops = (chunk.length - RecieverMiddleware.treeInfoSize) / RecieverMiddleware.treeHopSize
+    const hops = treeInfo.hops.length
     // Verify that packet come from remote peer
     // last hop is to this node, 2nd to last is to the previous hop, which is who this is from
     assert.ok(
       hops > 1
-        ? this.remote.compare(treeInfo.hops[treeInfo.hops.length - 2]) === 0
-        : this.remote.compare(treeInfo.root) === 0,
+        ? this.peer.remoteKey.compare(treeInfo.hops[treeInfo.hops.length - 2]) === 0
+        : this.peer.remoteKey.compare(treeInfo.root) === 0,
       'wireDecodeError:wireProtoTree:pubkey'
     )
     // Verify signatures
@@ -198,7 +199,7 @@ class RecieverMiddleware extends Transform {
       // TODO? Needs sign
       from: chunk.subarray(0, 32),
       path: this.readPeerPort(chunk.subarray(32, i)),
-      rpath: this.readPeerPort(chunk.subarray(i))
+      rpath: this.readPeerPort(chunk.subarray(i)).concat(this.peer.port)
     })
   }
 
@@ -261,8 +262,4 @@ class RecieverMiddleware extends Transform {
     return cb()
   }
 }
-
-module.exports = {
-  SenderMiddleware,
-  RecieverMiddleware
-}
+module.exports.RecieverMiddleware = RecieverMiddleware
