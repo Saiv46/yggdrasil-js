@@ -23,7 +23,9 @@ class PrivateKey extends AbstractKey {
   }
 
   static async generate () {
-    return new PrivateKey(await ed25519.utils.randomPrivateKey())
+    const priv = await ed25519.utils.randomPrivateKey()
+    const pub = await ed25519.getPublicKey(priv)
+    return new PrivateKey(Buffer.concat([priv, pub]))
   }
 }
 
@@ -34,11 +36,11 @@ class PublicKey extends AbstractKey {
   }
 
   static async fromPrivateKey (privateKey) {
-    return new PublicKey(await ed25519.getPublicKey(
+    return new PublicKey(
       privateKey instanceof PrivateKey
-        ? privateKey.toBuffer()
-        : privateKey
-    ))
+        ? privateKey.toBuffer().subarray(PublicKey.SIZE)
+        : await ed25519.getPublicKey(privateKey.subarray(0, PublicKey.SIZE))
+    )
   }
 }
 

@@ -1,4 +1,4 @@
-const { PrivateKey, PublicKey } = require('../crypto')
+const { PrivateKey, PublicKey } = require('./crypto')
 const HJSON = require('hjson').rt
 
 module.exports.parse = async function ReadConfig (string) {
@@ -11,8 +11,10 @@ module.exports.stringify = async function WriteConfig (config) {
 
 module.exports.generate = async function GenerateConfig () {
   const config = HJSON.parse(SAMPLE_CONFIG)
-  config.PrivateKey = await PrivateKey.generate()
-  config.PublicKey = await PublicKey.fromPrivateKey(config.PrivateKey)
+  const priv = await PrivateKey.generate()
+  const pub = await PublicKey.fromPrivateKey(priv)
+  config.PrivateKey = priv.toString()
+  config.PublicKey = pub.toString()
   return config
 }
 

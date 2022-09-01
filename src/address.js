@@ -1,5 +1,5 @@
 const assert = require('assert')
-const { PublicKey } = require('./crypto')
+const { PublicKey } = require('./utils/crypto')
 
 module.exports = class Address {
   static PREFIX = 0x02
@@ -12,7 +12,7 @@ module.exports = class Address {
       ? Address.parse(addr)
       : Buffer.from(addr)
     assert.strictEqual(this.value[0] & ~Address.SUBNET_FLAG, Address.PREFIX, 'Invalid address prefix')
-    assert.strictEqual(this.value.length, Address.IZE, 'Invalid address size')
+    assert.strictEqual(this.value.length, Address.SIZE, 'Invalid address size')
   }
 
   toPartialKey () {
@@ -69,16 +69,20 @@ module.exports = class Address {
       buf[io] |= (key[i + 1] & maskNext) >> (8 - bitShift)
       buf[io] ^= 255
     }
-    return buf
+    return new Address(buf)
   }
 
   static subnetFromPublicKey (key) {
-    const buf = Address.fromPublicKey(key)
-    buf[0] |= Address.SUBNET_FLAG
-    return buf.slice(0, Address.SUBNET_SIZE)
+    const addr = Address.fromPublicKey(key)
+    addr.value[0] |= Address.SUBNET_FLAG
+    addr.value.fill(0, Address.SUBNET_SIZE)
+    return addr
   }
 
   static validateAddress (addr) {
+    if (typeof addr === 'string') {
+      addr = Address.parse(addr)
+    }
     assert.strictEqual(addr[0] & ~Address.SUBNET_FLAG, Address.PREFIX, 'Invalid prefix')
     assert.strictEqual(
       addr.length,
