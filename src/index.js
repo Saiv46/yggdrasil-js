@@ -39,7 +39,7 @@ module.exports = class Core {
     )
     if (peer.info.timeout) {
       setInterval(
-        () => stream.write({ type: 'Dummy' }),
+        () => stream.write({ type: 'Heartbeat' }),
         Math.ceil(peer.info.timeout * 2/3)
       )
     }

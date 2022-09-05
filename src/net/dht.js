@@ -58,6 +58,8 @@ class RecieverMiddleware extends Transform {
 
   _transform ({ data: chunk }, _, cb) {
     switch (chunk.type) {
+      case 'Heartbeat':
+        break
       case 'Tree':
         this.handleTreeInfo(chunk.data)
         break

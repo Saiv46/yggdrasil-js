@@ -19,7 +19,7 @@
 			"packetType": ["mapper", {
 				"type": "i8",
 				"mappings": {
-					"0": "Dummy",
+					"0": "Heartbeat",
 					"1": "Tree",
 					"2": "Bootstrap",
 					"3": "BootstrapAck",

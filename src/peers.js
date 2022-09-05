@@ -101,8 +101,7 @@ class PeerInfo {
     this.socket.write(HEADER)
     this.socket.write(this.core.publicKey.toBuffer())
     const [header] = await once(this.socket, 'data', { signal: ac.signal })
-    this.socket.pause()
-    console.log('paused stream')
+    this.socket.pause() // Need to pause socket after once
     assert.ok(HEADER.compare(header, 0, HEADER.length) === 0, 'Invalid header (incompatible version?)')
     this.remoteKey = header.subarray(HEADER.length)
     if (socket) {
