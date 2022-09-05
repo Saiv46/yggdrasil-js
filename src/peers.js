@@ -96,14 +96,13 @@ class PeerInfo {
     const ac = new AbortController()
     setTimeout(() => ac.abort('Timeout'), 10_000)
     this.socket = socket ?? wire[this.info.protocol].connect(this.info)
-    /* DEBUG */
-    this.socket.on('data', data => console.log('socket', data.inspect()))
-    this.socket.on('error', err => console.error('socket', err))
-    /* DEBUG END */
+    this.socket.on('data', console.log)
     await once(this.socket, 'ready', { signal: ac.signal })
     this.socket.write(HEADER)
     this.socket.write(this.core.publicKey.toBuffer())
     const [header] = await once(this.socket, 'data', { signal: ac.signal })
+    this.socket.pause()
+    console.log('paused stream')
     assert.ok(HEADER.compare(header, 0, HEADER.length) === 0, 'Invalid header (incompatible version?)')
     this.remoteKey = header.subarray(HEADER.length)
     if (socket) {

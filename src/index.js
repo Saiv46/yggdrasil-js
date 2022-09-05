@@ -1,5 +1,7 @@
 const { PeerList } = require('./peers')
 const { compose } = require('stream')
+const DHTree = require('./dhtree')
+const { PrivateKey, PublicKey } = require('./utils/crypto')
 // Streams
 const { Logger } = require('./net/debug')
 const { Splitter, Framer } = require('./net/framing')
