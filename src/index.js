@@ -1,5 +1,7 @@
 const { PeerList } = require('./peers')
 const { compose } = require('stream')
+// Streams
+const { Logger } = require('./net/debug')
 const { Splitter, Framer } = require('./net/framing')
 const { SenderMiddleware, RecieverMiddleware } = require('./net/dht')
 const { createSerializer, createDeserializer } = require('./net/serialization')
@@ -16,13 +18,22 @@ module.exports = class Core {
   }
 
   makeProtoHandler (peer) {
-    compose(
+    const stream = compose(
+      new Logger('stream:in'),
       new SenderMiddleware(this, peer),
+      new Logger('proto:in'),
       createSerializer(),
+      new Logger('frame:in'),
       new Framer(),
+      new Logger('net:in'),
       peer.socket,
+      new Logger('net:out'),
       new Splitter(),
+      new Logger('frame:out'),
       createDeserializer(),
+      new Logger('proto:out'),
+      new RecieverMiddleware(this, peer),
+      new Logger('stream:out')
     )
   }
 }

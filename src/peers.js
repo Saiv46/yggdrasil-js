@@ -60,7 +60,7 @@ class PeerList {
     } catch (e) {
       this.peers.delete(url)
       await peer.close()
-      throw e
+      throw new Error('Failed to add peer', { cause: e })
     }
   }
 
