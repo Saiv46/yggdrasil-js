@@ -3,7 +3,7 @@ const { createConnection, createServer } = require('net')
 module.exports.connect = function createTCPConnection (url) {
   const socket = createConnection(url.port, url.host)
     .setNoDelay()
-    .setTimeout(10000, () => socket.end())
+    .setTimeout(url.timeout, () => socket.end())
   return socket
 }
 

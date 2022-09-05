@@ -127,6 +127,7 @@ class PeerInfo {
 }
 
 class PeerURL {
+  static timeoutDefault = 6000
   constructor (string) {
     const url = new URL('http' + string.slice(string.indexOf('://')))
     this.protocol = string.slice(0, string.indexOf('://'))
@@ -135,6 +136,7 @@ class PeerURL {
     this.port = url.port
     this.options = url.pathname.substring(1)
     this.name = url.searchParams.getAll('sni')
+    this.timeout = url.searchParams.get('timeout') ?? PeerURL.timeoutDefault
     this.pinnedKeys = url.searchParams.has('key')
       ? url.searchParams.getAll('key').map(v => new PublicKey(v))
       : null
@@ -155,6 +157,9 @@ class PeerURL {
   toString () {
     const url = new URL(`${this.protocol}://${this.host}:${this.port}/${this.options}`)
     if (this.name) url.searchParams.set('sni', this.name)
+    if (this.timeout !== PeerURL.timeoutDefault) {
+      url.searchParams.set('timeout', this.timeout)
+    }
     if (this.pinnedKeys) {
       this.pinnedKeys.forEach(v => url.searchParams.append('key', v.toString()))
     }
