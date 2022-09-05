@@ -25,6 +25,7 @@ class Splitter extends Transform {
       if (offset + length + 2 < this.buffer.length) break
       offset += 2
       this.push(this.buffer.subarray(offset, offset + length))
+      offset += length
     }
     if (offset) this.buffer = this.buffer.subarray(offset)
     return cb()

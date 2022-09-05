@@ -1,6 +1,6 @@
 {
 	"types": {
-		"i8": "native",
+		"u8": "native",
 		"u64": "native",
 		"count": "native",
 		"buffer": "native",
@@ -17,7 +17,7 @@
 	"wire": {
 		"types": {
 			"packetType": ["mapper", {
-				"type": "i8",
+				"type": "u8",
 				"mappings": {
 					"0": "Heartbeat",
 					"1": "Tree",
@@ -33,7 +33,7 @@
 				}
 			}],
 			"trafficType": ["mapper", {
-				"type": "i8",
+				"type": "u8",
 				"mappings": {
 					"0": "Dummy",
 					"1": "Standard",
