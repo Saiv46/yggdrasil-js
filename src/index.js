@@ -2,8 +2,7 @@ const { PeerList } = require('./peers')
 const { compose } = require('stream')
 const { Splitter, Framer } = require('./net/framing')
 const { SenderMiddleware, RecieverMiddleware } = require('./net/dht')
-const DHTree = require('./dhtree')
-const { PrivateKey, PublicKey } = require('./utils/crypto')
+const { createSerializer, createDeserializer } = require('./net/serialization')
 
 module.exports = class Core {
   constructor (config) {
@@ -19,10 +18,11 @@ module.exports = class Core {
   makeProtoHandler (peer) {
     compose(
       new SenderMiddleware(this, peer),
+      createSerializer(),
       new Framer(),
       peer.socket,
       new Splitter(),
-      new RecieverMiddleware(this, peer)
+      createDeserializer(),
     )
   }
 }

@@ -1,0 +1,148 @@
+{
+	"types": {
+		"i8": "native",
+		"u64": "native",
+		"count": "native",
+		"buffer": "native",
+		"varint": "native",
+		"container": "native",
+		"mapper": "native",
+		"switch": "native",
+		"restarray": "native",
+		"wrapper": "native",
+		"sequence": "u64",
+		"publicKey": ["buffer", { "count": 32 }],
+		"signature": ["buffer", { "count": 64 }]
+	},
+	"wire": {
+		"types": {
+			"packetType": ["mapper", {
+				"type": "i8",
+				"mappings": {
+					"0": "Dummy",
+					"1": "Tree",
+					"2": "Bootstrap",
+					"3": "BootstrapAck",
+					"4": "Setup",
+					"5": "Teardown",
+					"6": "PathNotify",
+					"7": "PathLookup",
+					"8": "PathResponse",
+					"9": "DHTTraffic",
+					"10": "PathTraffic"
+				}
+			}],
+			"trafficType": ["mapper", {
+				"type": "i8",
+				"mappings": {
+					"0": "Dummy",
+					"1": "Standard",
+					"2": "OutOfBand"
+				}
+			}],
+			"treeInfo": ["container", [
+				{ "name": "root", "type": "publicKey" },
+				{ "name": "seq", "type": "sequence" },
+				{ "name": "hops", "type": ["restarray", "treeHop"] }
+			]],
+			"treeHop": ["container", [
+				{ "name": "next", "type": "publicKey" },
+				{ "name": "port", "type": "varint" },
+				{ "name": "sign", "type": "signature" }
+			]],
+			"peerPorts": ["restarray", "varint"],
+			"treeLabel": ["container", [
+				{ "name": "sign", "type": "signature" },
+				{ "name": "key", "type": "publicKey" },
+				{ "name": "root", "type": "publicKey" },
+				{ "name": "seq", "type": "sequence" },
+				{ "name": "path", "type": "peerPorts" }
+			]],
+			"setupToken": ["container", [
+				{ "name": "sign", "type": "signature" },
+				{ "name": "source", "type": "publicKey" },
+				{ "name": "destination", "type": "treeLabel" }
+			]],
+			"bootstrap": "treeLabel",
+			"bootstrapAck": ["container", [
+				{
+					"name": "bootstrap",
+					"type": ["wrapper", { "countType": "varint", "type": "bootstrap" }]
+				},
+				{ "name": "response", "type": "setupToken" }
+			]],
+			"setup": ["container", [
+				{ "name": "sign", "type": "signature" },
+				{ "name": "seq", "type": "sequence" },
+				{ "name": "token", "type": "setupToken" }
+			]],
+			"teardown": ["container", [
+				{ "name": "sign", "type": "signature" },
+				{ "name": "key", "type": "publicKey" },
+				{ "name": "root", "type": "publicKey" },
+				{ "name": "rootSeq", "type": "sequence" }
+			]],
+			"pathNotify": ["container", [
+				{ "name": "sign", "type": "signature" },
+				{ "name": "destination", "type": "publicKey" },
+				{ "name": "label", "type": "treeLabel" }
+			]],
+			"pathLookup": ["container", [
+				{
+					"name": "notify",
+					"type": ["wrapper", {
+						"countType": "varint",
+						"type": "pathNotify"
+					}]
+				},
+				{ "name": "rpath", "type": "peerPorts" }
+			]],
+			"pathResponse": ["container", [
+				{ "name": "from", "type": "publicKey" },
+				{ "name": "path", "type": "peerPorts" },
+				{ "name": "rpath", "type": "peerPorts" }
+			]],
+			"dhtTraffic": ["container", [
+				{ "name": "source", "type": "publicKey" },
+				{ "name": "destination", "type": "publicKey" },
+				{ "name": "kind", "type": "trafficType" },
+				{ "name": "payload", "type": ["buffer", { "rest": true }] }
+			]],
+			"pathTraffic": ["container", [
+				{ "name": "path", "type": "peerPorts" },
+				{ "anon": true, "type": "dhtTraffic" }
+			]],
+			"packet": ["container", [
+				{ "name": "type", "type": "packetType" },
+				{
+					"name": "data",
+					"type": ["switch", {
+						"compareTo": "type",
+						"fields": {
+							"Tree": "treeInfo",
+							"Bootstrap": "bootstrap",
+							"BootstrapAck": "bootstrapAck",
+							"Setup": "setup",
+							"Teardown": "teardown",
+							"PathNotify": "pathNotify",
+							"PathLookup": "pathLookup",
+							"PathResponse": "pathResponse",
+							"DHTTraffic": "dhtTraffic",
+							"PathTraffic": "pathTraffic"
+						},
+						"default": "void"
+					}]
+				}
+			]],
+			"treeInfoNoSignature": ["container", [
+				{ "name": "root", "type": "publicKey" },
+				{ "name": "seq", "type": "sequence" },
+				{ "name": "hops", "type": ["restarray", "treeHopNoSignature"] }
+			]],
+			"treeHopNoSignature": ["container", [
+				{ "name": "next", "type": "publicKey" },
+				{ "name": "port", "type": "varint" }
+			]]
+		}
+	}
+}
