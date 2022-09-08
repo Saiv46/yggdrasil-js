@@ -40,7 +40,7 @@ module.exports = class Core {
     if (peer.info.timeout) {
       setInterval(
         () => stream.write({ type: 'Heartbeat' }),
-        Math.ceil(peer.info.timeout * 2/3)
+        Math.ceil(peer.info.timeout * 2 / 3)
       )
     }
     peer.pipeline = stream

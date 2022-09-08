@@ -96,14 +96,13 @@ class PeerInfo {
     const ac = new AbortController()
     setTimeout(() => ac.abort('Timeout'), 10_000)
     this.socket = socket ?? wire[this.info.protocol].connect(this.info)
-    this.socket.on('data', console.log)
     await once(this.socket, 'ready', { signal: ac.signal })
     this.socket.write(HEADER)
     this.socket.write(this.core.publicKey.toBuffer())
     const [header] = await once(this.socket, 'data', { signal: ac.signal })
     this.socket.pause() // Need to pause socket after once
     assert.ok(HEADER.compare(header, 0, HEADER.length) === 0, 'Invalid header (incompatible version?)')
-    this.remoteKey = header.subarray(HEADER.length)
+    this.remoteKey = header.subarray(HEADER.length, HEADER.length + PublicKey.SIZE)
     if (socket) {
       assert.ok(this.core.publicKeyAllowed(this.remoteKey), 'Not allowed public key')
     } else {
@@ -120,6 +119,8 @@ class PeerInfo {
       await once(this.socket, 'close', { signal: ac.signal })
     } catch (e) {
       this.socket.destroy()
+    } finally {
+      this.core.dht.removePeer(this)
     }
   }
 }

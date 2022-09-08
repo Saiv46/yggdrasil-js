@@ -112,6 +112,17 @@ const CustomTypes = {
       const size = this.sizeOf(value, typeArgs.type, rootNode)
       return size + this.sizeOf(size, typeArgs.countType, rootNode)
     }
+  ],
+  restbuffer: [
+    function readRestBuffer (buffer, offset) {
+      return { value: buffer.subarray(offset), size: buffer.length - offset }
+    },
+    function writeRestBuffer (value, buffer, offset) {
+      return offset + value.data.copy(buffer, offset)
+    },
+    function sizeOfRestBuffer (value) {
+      return value.length
+    }
   ]
 }
 

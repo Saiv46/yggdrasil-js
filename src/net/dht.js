@@ -1,6 +1,6 @@
 const assert = require('assert')
 const { Transform } = require('stream')
-const { ed25519 } = require('../utils/crypto')
+const { ed25519, PublicKey } = require('../utils/crypto')
 const { Protocol } = require('./serialization')
 
 class SenderMiddleware extends Transform {
@@ -8,6 +8,29 @@ class SenderMiddleware extends Transform {
     super({ readableObjectMode: true, writableObjectMode: true })
     this.core = core
     this.peer = peer
+    // Hack to get ourself into the remote node's dhtree
+  	// They send a similar message and we'll respond with correct info
+    this.sendTree({ root: core.publicKey, seq: 0n, hops: [] })
+  }
+
+  async sendTree (treeInfo) {
+    treeInfo.hops.push({
+      next: this.peer.remoteKey,
+      port: 0
+    })
+    if (treeInfo.root instanceof PublicKey) {
+      treeInfo.root = treeInfo.root.toBuffer()
+    }
+    for (const hop of treeInfo.hops) {
+      if (hop.next instanceof PublicKey) hop.next = hop.next.toBuffer()
+    }
+    treeInfo.hops[treeInfo.hops.length - 1].sign = await this.core.privateKey.sign(
+      Protocol.createPacketBuffer('treeInfoNoSignature', treeInfo)
+    )
+    this.push({
+      type: 'Tree',
+      data: treeInfo
+    })
   }
 
   _transform (chunk, _, cb) {
@@ -53,44 +76,40 @@ class RecieverMiddleware extends Transform {
         i ? data.hops[i - 1].next : data.root
       ), 'wireProcessError:treeInfo:verify:' + i)
     }
-    this.core.dht.update(data)
+    this.core.dht.update(data, this.peer)
   }
 
-  _transform ({ data: chunk }, _, cb) {
-    switch (chunk.type) {
+  _transform ({ data: { type, data } }, _, cb) {
+    switch (type) {
       case 'Heartbeat':
         break
       case 'Tree':
-        this.handleTreeInfo(chunk.data)
+        this.handleTreeInfo(data)
         break
       case 'Bootstrap':
-        this.core.dht.handleBootstrap(chunk.data)
+        this.core.dht.handleBootstrap(data)
         break
       case 'BootstrapAck':
-        this.core.dht.handleBootstrapAck(chunk.data)
+        this.core.dht.handleBootstrapAck(data)
         break
       case 'Setup':
-        this.core.dht.handleSetup(chunk.data)
+        this.core.dht.handleSetup(data)
         break
       case 'Teardown':
-        this.core.dht.handleTeardown(chunk.data)
+        this.core.dht.handleTeardown(data)
         break
       case 'PathNotify':
-        this.core.dht.handlePathNotify(chunk.data)
+        this.core.dht.handlePathNotify(data)
         break
       case 'PathLookup':
-        this.core.dht.handlePathLookup(chunk.data)
+        this.core.dht.handlePathLookup(data)
         break
       case 'PathResponse':
-        this.core.dht.handlePathResponse(chunk.data)
+        this.core.dht.handlePathResponse(data)
         break
       case 'DHTTraffic':
-        this.core.dht.handleDHTTraffic(
-          Object.assign(chunk.data.traffic, { path: chunk.data.path })
-        )
-        break
       case 'PathTraffic':
-        this.core.dht.handlePathTraffic(chunk.data)
+        this.core.dht.handleTraffic(data)
         break
     }
     return cb()

@@ -9,6 +9,7 @@
 		"mapper": "native",
 		"switch": "native",
 		"restarray": "native",
+		"restbuffer": "native",
 		"wrapper": "native",
 		"sequence": "u64",
 		"publicKey": ["buffer", { "count": 32 }],
@@ -106,7 +107,7 @@
 				{ "name": "source", "type": "publicKey" },
 				{ "name": "destination", "type": "publicKey" },
 				{ "name": "kind", "type": "trafficType" },
-				{ "name": "payload", "type": ["buffer", { "rest": true }] }
+				{ "name": "payload", "type": "restbuffer" }
 			]],
 			"pathTraffic": ["container", [
 				{ "name": "path", "type": "peerPorts" },

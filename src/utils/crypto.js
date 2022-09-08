@@ -10,16 +10,12 @@ class AbstractKey {
   get length () { return this.data.length }
   toBuffer () { return this.data }
   toString () { return this.data.toString('hex') }
-  isEqual (key) {
-    return this.data.length === key.length &&
-      this.data.compare(key.toBuffer()) === 0
-  }
 }
 
 class PrivateKey extends AbstractKey {
   static SIZE = 64
   async sign (data) {
-    return Buffer.from(await ed25519.sign(data, this.data))
+    return Buffer.from(await ed25519.sign(data, this.data.subarray(0, 32)))
   }
 
   static async generate () {

@@ -1,5 +1,6 @@
 const debug = require('debug')('yggdrasil')
 const { Transform } = require('stream')
+require("util").inspect.defaultOptions.depth = null
 
 class Logger extends Transform {
   constructor (name) {
