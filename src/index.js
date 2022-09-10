@@ -22,21 +22,17 @@ module.exports = class Core {
 
   makeProtoHandler (peer) {
     const stream = compose(
-      new Logger('net:stream:out'),
+      new Logger('proto:out'),
       new SenderMiddleware(this, peer),
-      new Logger('net:proto:out'),
+      new Logger('net:out'),
       createSerializer(),
-      new Logger('net:frame:out'),
       new Framer(),
-      new Logger('net:socket:out'),
       peer.socket,
-      new Logger('net:socket:in'),
       new Splitter(),
-      new Logger('net:frame:in'),
       createDeserializer(),
-      new Logger('net:proto:in'),
+      new Logger('net:in'),
       new RecieverMiddleware(this, peer),
-      new Logger('net:stream:in')
+      new Logger('proto:in')
     )
     if (peer.info.timeout) {
       setInterval(
