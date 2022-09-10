@@ -27,7 +27,7 @@ class PeerList {
       url = new PeerURL(url)
     }
     if (PeerList.findURLEntry(this.listeners, url)) return
-    const srv = server ?? wire[this.info.protocol].listen(this.info)
+    const srv = server ?? wire[url.protocol].listen(url)
     srv.on('connection', socket => {
       const peer = new PeerURL(url.toString())
       peer.port = socket.remotePort
@@ -107,9 +107,11 @@ class PeerInfo {
     const ac = new AbortController()
     setTimeout(() => ac.abort('Timeout'), 10_000)
     this.socket = socket ?? wire[this.info.protocol].connect(this.info)
-    await once(this.socket, 'ready', { signal: ac.signal })
-    this.socket.write(HEADER)
-    this.socket.write(this.core.publicKey.toBuffer())
+    this.socket.once('error', err => ac.abort(err))
+    if (this.socket.connecting) {
+      await once(this.socket, 'ready', { signal: ac.signal })
+    }
+    this.socket.write(Buffer.concat([HEADER, this.core.publicKey.toBuffer()]))
     const [header] = await once(this.socket, 'data', { signal: ac.signal })
     this.socket.pause() // Need to pause socket after once
     assert.ok(HEADER.compare(header, 0, HEADER.length) === 0, 'Invalid header (incompatible version?)')

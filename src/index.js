@@ -11,13 +11,13 @@ const { createSerializer, createDeserializer } = require('./net/serialization')
 module.exports = class Core {
   constructor (config) {
     this.config = config
-    this.peers = new PeerList(this)
-    this.dht = new DHTree(this)
-    this.proto = null
-
     this.privateKey = new PrivateKey(this.config.PrivateKey)
     this.publicKey = new PublicKey(this.config.PublicKey)
     this.allowedKeys = this.config.AllowedPublicKeys?.map(v => new PublicKey(v))
+    // Components
+    this.peers = new PeerList(this)
+    this.dht = new DHTree(this)
+    this.proto = null
   }
 
   makeProtoHandler (peer) {
@@ -48,6 +48,6 @@ module.exports = class Core {
   }
 
   publicKeyAllowed (key) {
-    return !this.allowedKeys || this.allowedKeys.some(v => v.equal(key))
+    return !this.allowedKeys?.length || this.allowedKeys.some(v => v.equal(key))
   }
 }

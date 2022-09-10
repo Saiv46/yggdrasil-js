@@ -29,7 +29,8 @@ module.exports = class DHTree {
     this.isRootSwitching = false // True when switching root to ourself
     this.selfExpireTimer = 0 // A timer to make selfTreeInfo expire
     this.bootstrapTimer = 0
-  update (data) { console.log('update', data) }
+
+    this.fixParent()
   }
 
   handleTreeInfo (treeInfo, peer) {
@@ -110,7 +111,10 @@ module.exports = class DHTree {
   fixParent () {
     const oldSelf = this.selfTreeInfo
     if (this.selfTreeInfo === null || this.core.publicKey.less(this.selfTreeInfo.root)) {
-      this.selfTreeInfo = new TreeInfo({ root: this.core.publicKey })
+      this.selfTreeInfo = new TreeInfo({
+        root: this.core.publicKey,
+        seq: Date.now()
+      })
       this.parentPeer = null
     }
     for (const [peer, info] of this.treeInfoByPeer.entries()) {
