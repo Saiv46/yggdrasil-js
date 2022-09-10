@@ -4,8 +4,11 @@ const { once } = require('events')
 const { PublicKey } = require('./utils/crypto')
 const { debug } = require('./utils/debug')
 const wire = require('./wire')
-const { VERSION } = require('./utils/constants')
 
+const PeerURL = require('./utils/peerurl')
+PeerURL.supportedProtocols = wire
+
+const { VERSION } = require('./utils/constants')
 const HEADER = Buffer.from('meta' + String.fromCharCode(...VERSION))
 
 class PeerList {
@@ -14,6 +17,7 @@ class PeerList {
     this.log = debug.extend('peers')
     this.listeners = new Map()
     this.peers = new Map()
+    this.counter = 0
     core.config.Peers?.forEach?.(v => this.add(v))
     core.config.Listen?.forEach?.(v => this.listen(v))
   }
@@ -58,6 +62,7 @@ class PeerList {
     if (PeerList.findURLEntry(this.peers, url)) return
     const peer = new PeerInfo(url, this.core)
     try {
+      peer.link = this.counter++
       this.peers.set(url, peer)
       await peer.connect(socket)
       this.log('Connected to', peer)
@@ -108,13 +113,13 @@ class PeerInfo {
     const [header] = await once(this.socket, 'data', { signal: ac.signal })
     this.socket.pause() // Need to pause socket after once
     assert.ok(HEADER.compare(header, 0, HEADER.length) === 0, 'Invalid header (incompatible version?)')
-    this.remoteKey = header.subarray(HEADER.length, HEADER.length + PublicKey.SIZE)
+    this.remoteKey = new PublicKey(header.subarray(HEADER.length, HEADER.length + PublicKey.SIZE))
     if (socket) {
       assert.ok(this.core.publicKeyAllowed(this.remoteKey), 'Not allowed public key')
     } else {
       assert.ok(this.info.hasValidPublicKey(this.remoteKey), 'Invalid pinned public key')
     }
-    this.core.makeProtoHandler(this)
+    await this.core.makeProtoHandler(this)
   }
 
   async close () {
@@ -129,47 +134,10 @@ class PeerInfo {
       this.core.dht.removePeer(this)
     }
   }
-}
 
-class PeerURL {
-  static timeoutDefault = 6000
-  constructor (string) {
-    const url = new URL('http' + string.slice(string.indexOf('://')))
-    this.protocol = string.slice(0, string.indexOf('://'))
-    assert.ok(this.protocol in wire, 'Unsupported protocol')
-    this.host = url.hostname
-    this.port = url.port
-    this.options = url.pathname.substring(1)
-    this.name = url.searchParams.getAll('sni')
-    this.timeout = url.searchParams.get('timeout') ?? PeerURL.timeoutDefault
-    this.pinnedKeys = url.searchParams.has('key')
-      ? url.searchParams.getAll('key').map(v => new PublicKey(v))
-      : null
-  }
-
-  isEqual (peer) {
-    return this.protocol === peer.protocol &&
-      this.host === peer.host &&
-      this.port === peer.port &&
-      this.options === peer.options &&
-      this.name === peer.name
-  }
-
-  hasValidPublicKey (key) {
-    return !this.pinnedKeys || this.pinnedKeys.some(v => v.isEqual(key))
-  }
-
-  toString () {
-    const url = new URL(`${this.protocol}://${this.host}:${this.port}/${this.options}`)
-    if (this.name) url.searchParams.set('sni', this.name)
-    if (this.timeout !== PeerURL.timeoutDefault) {
-      url.searchParams.set('timeout', this.timeout)
-    }
-    if (this.pinnedKeys) {
-      this.pinnedKeys.forEach(v => url.searchParams.append('key', v.toString()))
-    }
-    return this.protocol + url.toString().slice('http'.length)
+  [inspect.custom] () {
+    return `PeerInfo#${this.port} @ ${this.info.toString()}`
   }
 }
 
-module.exports = { PeerList, PeerInfo, PeerURL }
+module.exports = { PeerList, PeerInfo }
