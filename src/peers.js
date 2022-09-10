@@ -1,6 +1,8 @@
 const assert = require('assert')
+const { inspect } = require('node:util')
 const { once } = require('events')
 const { PublicKey } = require('./utils/crypto')
+const { debug } = require('./utils/debug')
 const wire = require('./wire')
 const { VERSION } = require('./utils/constants')
 
@@ -9,6 +11,7 @@ const HEADER = Buffer.from('meta' + String.fromCharCode(...VERSION))
 class PeerList {
   constructor (core) {
     this.core = core
+    this.log = debug.extend('peers')
     this.listeners = new Map()
     this.peers = new Map()
     core.config.Peers?.forEach?.(v => this.add(v))
@@ -57,9 +60,11 @@ class PeerList {
     try {
       this.peers.set(url, peer)
       await peer.connect(socket)
+      this.log('Connected to', peer)
     } catch (e) {
       this.peers.delete(url)
       await peer.close()
+      this.log('Failed to connect to', e)
       throw new Error('Failed to add peer', { cause: e })
     }
   }
@@ -73,6 +78,7 @@ class PeerList {
     const peer = this.peers.get(key)
     this.peers.delete(key)
     await peer.close()
+    this.log('Disconnected', peer)
   }
 
   static findURLEntry (map, url) {

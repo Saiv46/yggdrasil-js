@@ -3,7 +3,7 @@ const { compose } = require('stream')
 const DHTree = require('./dhtree')
 const { PrivateKey, PublicKey } = require('./utils/crypto')
 // Streams
-const { Logger } = require('./net/debug')
+const { Logger } = require('./utils/debug')
 const { Splitter, Framer } = require('./net/framing')
 const { SenderMiddleware, RecieverMiddleware } = require('./net/dht')
 const { createSerializer, createDeserializer } = require('./net/serialization')
@@ -21,21 +21,21 @@ module.exports = class Core {
 
   makeProtoHandler (peer) {
     const stream = compose(
-      new Logger('stream:in'),
+      new Logger('net:stream:out'),
       new SenderMiddleware(this, peer),
-      new Logger('proto:in'),
+      new Logger('net:proto:out'),
       createSerializer(),
-      new Logger('frame:in'),
+      new Logger('net:frame:out'),
       new Framer(),
-      new Logger('net:in'),
+      new Logger('net:socket:out'),
       peer.socket,
-      new Logger('net:out'),
+      new Logger('net:socket:in'),
       new Splitter(),
-      new Logger('frame:out'),
+      new Logger('net:frame:in'),
       createDeserializer(),
-      new Logger('proto:out'),
+      new Logger('net:proto:in'),
       new RecieverMiddleware(this, peer),
-      new Logger('stream:out')
+      new Logger('net:stream:in')
     )
     if (peer.info.timeout) {
       setInterval(
