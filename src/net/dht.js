@@ -1,7 +1,6 @@
 const assert = require('assert')
 const { Transform } = require('stream')
-const { ed25519, PublicKey } = require('../utils/crypto')
-const { Protocol } = require('./serialization')
+const { TreeInfo } = require('../utils/classes')
 
 class SenderMiddleware extends Transform {
   constructor (core, peer) {
@@ -9,31 +8,23 @@ class SenderMiddleware extends Transform {
     this.core = core
     this.peer = peer
     // Hack to get ourself into the remote node's dhtree
-  	// They send a similar message and we'll respond with correct info
-    this.sendTree({ root: core.publicKey, seq: 0n, hops: [] })
+    // They send a similar message and we'll respond with correct info
+    this.sendTreeInfo(new TreeInfo({ root: core.publicKey }))
   }
 
-  async sendTree (treeInfo) {
-    treeInfo.hops.push({
-      next: this.peer.remoteKey,
-      port: 0
-    })
-    if (treeInfo.root instanceof PublicKey) {
-      treeInfo.root = treeInfo.root.toBuffer()
-    }
-    for (const hop of treeInfo.hops) {
-      if (hop.next instanceof PublicKey) hop.next = hop.next.toBuffer()
-    }
-    treeInfo.hops[treeInfo.hops.length - 1].sign = await this.core.privateKey.sign(
-      Protocol.createPacketBuffer('treeInfoNoSignature', treeInfo)
-    )
+  async sendTreeInfo (treeInfo) {
     this.push({
       type: 'Tree',
-      data: treeInfo
+      data: await treeInfo.toBufferSigned(this.peer, this.core.privateKey)
     })
   }
 
   _transform (chunk, _, cb) {
+    switch (chunk.type) {
+      case 'Tree':
+        this.sendTreeInfo(chunk.data)
+        return cb()
+    }
     return cb(null, chunk)
   }
 }
@@ -47,36 +38,21 @@ class RecieverMiddleware extends Transform {
   }
 
   async handleTreeInfo (data) {
-    // Verify that packet come from remote peer
-    // last hop is to this node, 2nd to last is to the previous hop, which is who this is from
-    if (data.hops.length > 1) {
-      assert.ok(
-        this.peer.remoteKey.compare(data.hops[data.hops.length - 2].next) === 0,
-        'wireProcessError:treeInfo:pubkey:hops'
-      )
-    } else {
-      assert.ok(
-        this.peer.remoteKey.compare(data.root) === 0,
-        'wireProcessError:treeInfo:pubkey:root'
-      )
-    }
+    const treeInfo = new TreeInfo(data)
+    // Verify that packet come from remote peer...
+    assert.ok(
+      this.peer.remoteKey.equal(treeInfo.hopFrom()),
+      'wireProcessError:treeInfo:pubkey:from'
+    )
+    // ...to us
+    assert.ok(
+      this.core.publicKey.equal(treeInfo.hopDest()),
+      'wireProcessError:treeInfo:pubkey:from'
+    )
     // Verify signatures
     // ironwood for some reason sign hops without previous signatures
-    const buf = Protocol.createPacketBuffer('treeInfoNoSignature', data)
-    let b = Protocol.sizeOf({
-      root: data.root,
-      seq: data.seq,
-      hops: []
-    }, 'treeInfoNoSignature')
-    for (let i = 0; i < data.hops.length; i++) {
-      b += Protocol.sizeOf(data.hops[i], 'treeHopNoSignature')
-      assert(await ed25519.verify(
-        data.hops[i].sign,
-        buf.subarray(0, b),
-        i ? data.hops[i - 1].next : data.root
-      ), 'wireProcessError:treeInfo:verify:' + i)
-    }
-    this.core.dht.update(data, this.peer)
+    assert(await treeInfo.verifySignatures(), 'wireProcessError:treeInfo:verify')
+    this.core.dht.handleTreeInfo(treeInfo, this.peer)
   }
 
   _transform ({ data: { type, data } }, _, cb) {

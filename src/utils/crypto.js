@@ -31,12 +31,40 @@ class PublicKey extends AbstractKey {
     return ed25519.verify(sign, data, this.data)
   }
 
+  equal (key) {
+    return key === this || this.data.compare(key.data) === 0
+  }
+
+  less (key) {
+    return this.data.compare(key.data) < 0
+  }
+
+  hash () {
+    return (2n ** 192n - 1n) * this.data.readBigUInt64BE(0) +
+      (2n ** 128n - 1n) * this.data.readBigUInt64BE(8) +
+      (2n ** 64n - 1n) * this.data.readBigUInt64BE(16) +
+      this.data.readBigUInt64BE(24)
+  }
+
+  static fromHash (value) {
+    const buf = Buffer.allocUnsafe(PublicKey.SIZE)
+    buf.writeBigUInt64BE((value >> 192n) & (2n ** 64n - 1n), 0)
+    buf.writeBigUInt64BE((value >> 128n) & (2n ** 64n - 1n), 8)
+    buf.writeBigUInt64BE((value >> 64n) & (2n ** 64n - 1n), 16)
+    buf.writeBigUInt64BE(value & (2n ** 64n - 1n), 24)
+    return new PublicKey(buf)
+  }
+
   static async fromPrivateKey (privateKey) {
     return new PublicKey(
       privateKey instanceof PrivateKey
         ? privateKey.toBuffer().subarray(PublicKey.SIZE)
-        : await ed25519.getPublicKey(privateKey.subarray(0, PublicKey.SIZE))
+        : await ed25519.getPublicKey(privateKey.subarray(-PublicKey.SIZE))
     )
+  }
+
+  static from (key) {
+    return key instanceof PublicKey ? key : new PublicKey(key)
   }
 }
 
