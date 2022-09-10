@@ -17,6 +17,7 @@ module.exports = class Core {
 
     this.privateKey = new PrivateKey(this.config.PrivateKey)
     this.publicKey = new PublicKey(this.config.PublicKey)
+    this.allowedKeys = this.config.AllowedPublicKeys?.map(v => new PublicKey(v))
   }
 
   makeProtoHandler (peer) {
@@ -44,5 +45,9 @@ module.exports = class Core {
       )
     }
     peer.pipeline = stream
+  }
+
+  publicKeyAllowed (key) {
+    return !this.allowedKeys || this.allowedKeys.some(v => v.equal(key))
   }
 }
