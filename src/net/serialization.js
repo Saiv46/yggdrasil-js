@@ -1,11 +1,12 @@
 const {
   ProtoDef,
   // Compiler: { ProtoDefCompiler },
-  Serializer, FullPacketParser
+  Serializer, FullPacketParser,
+  utils: { PartialReadError }
 } = require('protodef')
 const definition = require('./protocol.json')
 
-/*const CustomTypes = {
+/* const CustomTypes = {
   Read: {
     restarray: ['parametrizable', (compiler, type) => {
       let code = 'const data = []\n'
@@ -65,7 +66,7 @@ const definition = require('./protocol.json')
       return compiler.wrapCode(code)
     }]
   }
-}*/
+} */
 
 const CustomTypes = {
   restarray: [
@@ -96,9 +97,9 @@ const CustomTypes = {
   wrapper: [
     function readWrapper (buffer, offset, typeArgs, rootNode) {
       const { value: count, size: countSize } = this.read(buffer, offset, typeArgs.countType, rootNode)
-      const { value, size } = this.read(buffer, offset + countType, typeArgs.type, rootNode)
+      const { value, size } = this.read(buffer, offset + typeArgs.countType, typeArgs.type, rootNode)
       if (size !== count) {
-        throw new PartialReadError("Incorrect wrapped length, found size is " + size + " expected size was " + count)
+        throw new PartialReadError('Incorrect wrapped length, found size is ' + size + ' expected size was ' + count)
       }
       return { value, size: size + countSize }
     },
