@@ -34,12 +34,6 @@ module.exports = class Core {
       new RecieverMiddleware(this, peer),
       new Logger('proto:in')
     )
-    if (peer.info.timeout) {
-      setInterval(
-        () => stream.write({ type: 'Heartbeat' }),
-        Math.ceil(peer.info.timeout * 2 / 3)
-      )
-    }
     peer.pipeline = stream
   }
 

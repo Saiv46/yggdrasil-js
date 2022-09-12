@@ -10,6 +10,12 @@ class SenderMiddleware extends Transform {
     // Hack to get ourself into the remote node's dhtree
     // They send a similar message and we'll respond with correct info
     this.sendTreeInfo(new TreeInfo({ root: core.publicKey }))
+    if (peer.info.timeout) {
+      setInterval(
+        () => this.push({ type: 'Heartbeat' }),
+        Math.ceil(peer.info.timeout * 2 / 3)
+      )
+    }
   }
 
   async sendTreeInfo (treeInfo) {
