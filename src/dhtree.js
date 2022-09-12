@@ -118,22 +118,26 @@ module.exports = class DHTree {
       this.parentPeer = null
     }
     for (const [peer, info] of this.treeInfoByPeer.entries()) {
-      // This has a loop, e.g. it's from a child, so skip it
-      if (!info.isLoopSafe()) continue
-      let decision = 0
-      // Is this is a better root?
-      decision += info.root.less(this.selfTreeInfo.root)
-      decision -= this.selfTreeInfo.root.less(info.root)
-      // Compare sequence numbers
-      decision += info.seq > this.selfTreeInfo.seq
-      decision -= info.seq < this.selfTreeInfo.seq
-      // Is this has been around for longer (e.g. the path is more stable)
-      decision += info.hseq < this.selfTreeInfo.hseq
-      // If any of two conditions is true - switch root to this peer
-      if (decision > 1) {
-        this.selfTreeInfo = info
-        this.parentPeer = peer
+      switch (true) {
+        // This has a loop, e.g. it's from a child, so skip it
+        case !info.isLoopSafe():
+          continue
+        // Is this is a better root?
+        case info.root.equal(this.selfTreeInfo.root):
+          if (this.selfTreeInfo.root.less(info.root)) continue
+          break
+        // Compare sequence numbers
+        case info.seq === this.selfTreeInfo.seq:
+          if (info.seq < this.selfTreeInfo.seq) continue
+          break
+        case info.hseq < this.selfTreeInfo.hseq:
+          break
+        default:
+          continue
       }
+      // If any of conditions above is true - switch root to this peer
+      this.selfTreeInfo = info
+      this.parentPeer = peer
     }
     if (this.selfTreeInfo !== oldSelf) {
       this.log('Selected new tree info', this.selfTreeInfo)
