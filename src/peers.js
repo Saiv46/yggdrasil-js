@@ -17,7 +17,7 @@ class PeerList {
     this.log = debug.extend('peers')
     this.listeners = new Map()
     this.peers = new Map()
-    this.counter = 0
+    this.counter = 1
     core.config.Peers?.forEach?.(v => this.add(v))
     core.config.Listen?.forEach?.(v => this.listen(v))
   }
@@ -62,7 +62,7 @@ class PeerList {
     if (PeerList.findURLEntry(this.peers, url)) return
     const peer = new PeerInfo(url, this.core)
     try {
-      peer.link = this.counter++
+      peer.port = this.counter++
       this.peers.set(url, peer)
       await peer.connect(socket)
       this.log('Connected to', peer)
