@@ -29,8 +29,8 @@ module.exports = class DHTree {
     this.isRootSwitching = false // True when switching root to ourself
     this.selfExpireTimer = 0 // A timer to make selfTreeInfo expire
     this.bootstrapTimer = 0
-  update (data) { console.log('update', data) }
   }
+  update (data) { console.log('update', data) }
 
   handleTreeInfo (treeInfo, peer) {
     treeInfo.hseq = ++this.hseq
