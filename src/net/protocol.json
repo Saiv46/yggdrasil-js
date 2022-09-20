@@ -148,6 +148,10 @@
 			"treeHopNoSignature": ["container", [
 				{ "name": "next", "type": "publicKey" },
 				{ "name": "port", "type": "varint" }
+			]],
+			"setupTokenNoSignature": ["container", [
+				{ "name": "source", "type": "publicKey" },
+				{ "name": "destination", "type": "treeLabelNoSignature" }
 			]]
 		}
 	}

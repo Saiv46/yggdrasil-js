@@ -193,6 +193,20 @@ class SetupToken {
     }
   }
 
+  async verify () {
+    return (await this.verifySignatures()) && (await this.destLabel.verify())
+  }
+
+  async verifySignatures () {
+    const buf = Protocol.createPacketBuffer('setupTokenNoSignature', this.toBuffer())
+    return ed25519.verify(this.signature, buf, this.sourceKey.toBuffer())
+  }
+
+  async sign (privateKey) {
+    this.signature = await privateKey.sign(
+      Protocol.createPacketBuffer('setupTokenNoSignature', this.toBuffer())
+    )
+  }
 
   static from (token) {
     return token instanceof SetupToken ? token : new SetupToken(token)
