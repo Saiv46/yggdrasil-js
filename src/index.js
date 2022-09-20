@@ -2,6 +2,10 @@ const { PeerList } = require('./peers')
 const { compose } = require('stream')
 const DHTree = require('./dhtree')
 const { PrivateKey, PublicKey } = require('./utils/crypto')
+// Logging
+const Address = require('./utils/address')
+const { debug } = require('./utils/debug')
+const { VERSION } = require('./utils/constants')
 // Streams
 const { Logger } = require('./utils/debug')
 const { Splitter, Framer } = require('./net/framing')
@@ -18,6 +22,14 @@ module.exports = class Core {
     this.peers = new PeerList(this)
     this.dht = new DHTree(this)
     this.proto = null
+    // Logging
+    this.log = debug.extend('core')
+    // this.log('Protocol: yggdrasil')
+    this.log('Protocol version:', VERSION.join('.'))
+    this.log('IPv6 address:', Address.fromPublicKey(this.publicKey.toBuffer()).toString())
+    // this.log('IPv6 subnet:', Address.subnetFromPublicKey(this.publicKey.toBuffer()).toString())
+    this.log('Public key:', this.publicKey.toString())
+    // this.log('Coords:', this.dht.selfTreeInfo.hops)
   }
 
   makeProtoHandler (peer) {
