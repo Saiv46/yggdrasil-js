@@ -1,5 +1,6 @@
 const assert = require('assert')
 const { PublicKey } = require('./crypto')
+const { inspect } = require('node:util')
 
 module.exports = class PeerURL {
   static timeoutDefault = 6000
@@ -40,5 +41,9 @@ module.exports = class PeerURL {
       this.pinnedKeys.forEach(v => url.searchParams.append('key', v.toString()))
     }
     return this.protocol + url.toString().slice('http'.length)
+  }
+
+  [inspect.custom] () {
+    return `${this.protocol}://${this.host}:${this.port}`
   }
 }

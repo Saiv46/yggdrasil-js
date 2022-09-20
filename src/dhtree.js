@@ -40,7 +40,6 @@ module.exports = class DHTree {
 
     this.fixParent()
   }
-  update (data) { console.log('update', data) }
 
   handleTreeInfo (treeInfo, peer) {
     treeInfo.hseq = ++this.hseq
@@ -333,7 +332,6 @@ module.exports = class DHTree {
   }
 
   async handleBootstrap (data) {
-    console.log(data)
     const source = data.key
     const next = this._dhtLookup(source, true)
     if (next) return next.pipeline.write({ type: 'Bootstrap', data })
@@ -351,7 +349,7 @@ module.exports = class DHTree {
 
   async handleBootstrapAck (data) {
     const source = data.response.destLabel.key
-    const next = this._dhtLookup(data.request.label)
+    const next = this._treeLookup(data.request)
     switch (true) {
       case next:
         return next.write({ type: 'BootstrapAck', data })
@@ -408,13 +406,9 @@ module.exports = class DHTree {
 			t._teardown(nil, dinfo.getTeardown())
 		}
 	}
-	setup := t._newSetup(&ack.response)
-	t._handleSetup(nil, setup)
-	if t.prev == nil {
-		// This can happen if the treeLookup in handleSetup fails
-		// FIXME we should avoid letting this happen
-		//  E.g. check that the lookup will fail, or at least that the roots match
-	}*/
+	*/
+    const setup = new DHTSetup(data.response)
+    this.handleSetup(setup)
   }
 
   handleSetup (data) { console.log('setup', data) }

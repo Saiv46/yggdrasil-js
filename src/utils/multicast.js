@@ -1,5 +1,5 @@
-const { createSocket } = require('dgram')
-const { networkInterfaces } = require('os')
+const { createSocket } = require('node:dgram')
+const { networkInterfaces } = require('node:os')
 const Address = require('./address')
 const { PublicKey } = require('./crypto')
 
