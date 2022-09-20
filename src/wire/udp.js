@@ -15,7 +15,7 @@ async function resolveHostname (url, skipLookup = false) {
 }
 
 class UDPClient extends Duplex {
-  constructor(type, port, host) {
+  constructor (type, port, host) {
     super()
     this.remotePort = port
     this.remoteAddress = host
@@ -35,9 +35,10 @@ class UDPClient extends Duplex {
     })
     this.socket.connect(port, host)
   }
-  _read() { this._reading = true }
 
-  _writev(chunks, callback) {
+  _read () { this._reading = true }
+
+  _writev (chunks, callback) {
     const sendChunk = () => {
       let size = 0
       let i = 0
@@ -54,14 +55,14 @@ class UDPClient extends Duplex {
     sendChunk()
   }
 
-  _write(chunk, _, cb) {
+  _write (chunk, _, cb) {
     console.log('Send', chunk)
     this.socket.send(chunk, cb)
   }
 }
 
 class UDPServer extends EventEmitter {
-  constructor(type, port, host) {
+  constructor (type, port, host) {
     super()
     this.socket = dgram.createSocket(type)
     this.socket.on('message', (data, rinfo) => {
@@ -79,12 +80,12 @@ class UDPServer extends EventEmitter {
   }
 }
 
-module.exports.connect = async function createUDPConnection(url) {
+module.exports.connect = async function createUDPConnection (url) {
   const { address, family } = await resolveHostname(url)
   return new UDPClient(`udp${family}`, url.port, address)
 }
 
-module.exports.listen = async function createUDPServer(url) {
+module.exports.listen = async function createUDPServer (url) {
   const { address, family } = await resolveHostname(url, true)
   return new UDPServer(`udp${family || 4}`, url.port, address)
 }

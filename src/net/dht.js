@@ -17,9 +17,9 @@ function generatePacketSenders () {
 function generatePacketHandlers () {
   const obj = {}
   for (const name in typeClasses) {
-    const type = typeClasses[name]
-    if (!type.PACKET_TYPE) continue
-    obj[type.PACKET_TYPE] = data => new type(data)
+    const Type = typeClasses[name]
+    if (!Type.PACKET_TYPE) continue
+    obj[Type.PACKET_TYPE] = data => new Type(data)
   }
   return obj
 }

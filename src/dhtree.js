@@ -260,7 +260,7 @@ module.exports = class DHTree {
   // _dhtLookup selects the next hop needed to route closer to the destination in dht keyspace
   // this only uses the source direction of paths through the dht
   // bootstraps use slightly different logic, since they need to stop short of the destination key
-  _dhtLookup(dest, isBootstrap = false) {
+  _dhtLookup (dest, isBootstrap = false) {
     // Start by defining variables and helper functions
     let best = this.core.publicKey
     let bestPeer
@@ -284,7 +284,7 @@ module.exports = class DHTree {
       doCheckedUpdate(info.root, peer, null) // updates if the root is better
       for (const hop of info.hops) {
         doCheckedUpdate(hop.nextPeer, peer, null) // updates if this hop is better
-        const tinfo = this.treeInfoByPeer.get(bestPeer)       // may be nil if we're in the middle of a remove
+        const tinfo = this.treeInfoByPeer.get(bestPeer) // may be nil if we're in the middle of a remove
         if (tinfo && best.equal(hop.nextPeer) && info.hseq < tinfo.hseq) {
           // This ancestor matches our current next hop, but this peer's treeInfo is better, so switch to it
           doUpdate(hop.nextPeer, peer, null)
@@ -378,37 +378,30 @@ module.exports = class DHTree {
       ):
         // This is from a better prev than our current one
         break
+      case !this.prevPeer?.root?.equal?.(this.selfTreeInfo.root) ||
+        this.prevPeer?.rootSeq !== this.selfTreeInfo.seq:
+      // The curent prev needs replacing (old tree info)
       default:
         // We already have a better (FIXME? or equal) prev
         return
     }
     // Final thing to check, if the signatures are bad then ignore it
     if (!(await data.response.verify())) return
-/*
-	case !source.equal(t.dkeys[t.prev]):
-		// This isn't from the current prev or better, so ignore it
-		return
-	case !t.prev.root.equal(t.self.root) || t.prev.rootSeq != t.self.seq:
-		// The curent prev needs replacing (old tree info)
-	default:
-		
-		return
-	}
-	t.prev = nil
-	for _, dinfo := range t.dinfos {
-		// Former prev need to be notified that we're no longer next
-		// The only way to signal that is by tearing down the path
-		// We may have multiple former prev paths
-		//  From t.prev = nil when the tree changes, but kept around to bootstrap
-		// So loop over paths and close any going to a *different* node than the current prev
-		// The current prev can close the old path from that side after setup
-		if dest, isIn := t.dkeys[dinfo]; isIn && !dest.equal(source) {
-			t._teardown(nil, dinfo.getTeardown())
-		}
-	}
-	*/
-    const setup = new DHTSetup(data.response)
-    this.handleSetup(setup)
+    this.prevPeer = null
+    /*
+    for (const dinfo of this.dhtInfoByPeerInfo.values()) {
+      // Former prev need to be notified that we're no longer next
+      // The only way to signal that is by tearing down the path
+      // We may have multiple former prev paths
+      //  From t.prev = nil when the tree changes, but kept around to bootstrap
+      // So loop over paths and close any going to a *different* node than the current prev
+      // The current prev can close the old path from that side after setup
+      const dest = t.dkeys[dinfo]
+      if (dest && !dest.equal(source)) this.handleTeardown(dinfo.getTeardown())
+    }
+    */
+    // const setup = new DHTSetup(data.response)
+    // this.handleSetup(setup)
   }
 
   handleSetup (data) { console.log('setup', data) }
