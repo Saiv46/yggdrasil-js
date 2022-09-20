@@ -21,8 +21,8 @@ class Splitter extends Transform {
     this.buffer = Buffer.concat([this.buffer, chunk])
     let offset = 0
     while (offset + 2 <= this.buffer.length) {
-      const length = this.buffer.readUInt16BE(offset, offset)
-      if (offset + length + 2 < this.buffer.length) break
+      const length = this.buffer.readUInt16BE(offset)
+      if (offset + length + 2 > this.buffer.length) break
       offset += 2
       this.push(this.buffer.subarray(offset, offset + length))
       offset += length
