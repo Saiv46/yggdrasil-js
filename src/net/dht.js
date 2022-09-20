@@ -1,15 +1,37 @@
 const assert = require('assert')
 const { Transform } = require('stream')
-const { TreeInfo } = require('../utils/classes')
+const typeClasses = require('../utils/classes')
+
+function generatePacketSenders () {
+  const obj = {}
+  for (const name in typeClasses) {
+    const type = typeClasses[name]
+    if (!type.PACKET_TYPE) continue
+    obj[type.PACKET_TYPE] = (packet, core, peer) => (packet.toBufferSigned ?? packet.toBuffer)(peer, core.privateKey)
+  }
+  return obj
+}
+
+function generatePacketHandlers () {
+  const obj = {}
+  for (const name in typeClasses) {
+    const type = typeClasses[name]
+    if (!type.PACKET_TYPE) continue
+    obj[type.PACKET_TYPE] = data => new obj(data)
+  }
+  return obj
+}
 
 class SenderMiddleware extends Transform {
+  static PacketHandlers = generatePacketSenders()
+
   constructor (core, peer) {
     super({ readableObjectMode: true, writableObjectMode: true })
     this.core = core
     this.peer = peer
     // Hack to get ourself into the remote node's dhtree
     // They send a similar message and we'll respond with correct info
-    this.sendTreeInfo(new TreeInfo({ root: core.publicKey }))
+    this.write({ type: 'Tree', data: new TreeInfo({ root: core.publicKey }) })
     if (peer.info.timeout) {
       setInterval(
         () => this.push({ type: 'Heartbeat' }),
@@ -18,18 +40,12 @@ class SenderMiddleware extends Transform {
     }
   }
 
-  async sendTreeInfo (treeInfo) {
-    this.push({
-      type: 'Tree',
-      data: await treeInfo.toBufferSigned(this.peer, this.core.privateKey)
-    })
-  }
-
   _transform (chunk, _, cb) {
-    switch (chunk.type) {
-      case 'Tree':
-        this.sendTreeInfo(chunk.data)
-        return cb()
+    if (chunk.type in SenderMiddleware.PacketHandlers) {
+      Promise.resolve(
+        SenderMiddleware.PacketHandlers[chunk.type](chunk.data, this.core, this.peer)
+      ).then(data => this.push({ type: chunk.type, data }))
+      return cb()
     }
     return cb(null, chunk)
   }
@@ -37,14 +53,15 @@ class SenderMiddleware extends Transform {
 module.exports.SenderMiddleware = SenderMiddleware
 
 class RecieverMiddleware extends Transform {
+  static PacketHandlers = generatePacketHandlers()
+
   constructor (core, peer) {
     super({ readableObjectMode: true, writableObjectMode: true })
     this.core = core
     this.peer = peer
   }
 
-  async handleTreeInfo (data) {
-    const treeInfo = new TreeInfo(data)
+  async handleTreeInfo (treeInfo) {
     // Verify that packet come from remote peer...
     assert.ok(
       this.peer.remoteKey.equal(treeInfo.hopFrom()),
@@ -61,7 +78,10 @@ class RecieverMiddleware extends Transform {
     this.core.dht.handleTreeInfo(treeInfo, this.peer)
   }
 
-  _transform ({ data: { type, data } }, _, cb) {
+  async _transform ({ data: { type, data } }, _, cb) {
+    if (type in RecieverMiddleware.PacketHandlers) {
+      data = await RecieverMiddleware.PacketHandlers[type](data)
+    }
     switch (type) {
       case 'Heartbeat':
         break

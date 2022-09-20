@@ -2,6 +2,8 @@ const { ed25519, PublicKey } = require('../utils/crypto')
 const { Protocol } = require('../net/serialization')
 
 class TreeInfo {
+  static PACKET_TYPE = 'Tree'
+
   constructor ({ root, seq = 0n, hops = [], hseq = 0n, time = Date.now() }) {
     this.root = PublicKey.from(root)
     this.seq = seq
@@ -16,6 +18,25 @@ class TreeInfo {
 
   hopDest () {
     return this.hops[this.hops.length - 1]?.nextPeer ?? null
+  }
+
+  distanceToLabel (label) {
+    if (!this.root.equal(label.root)) {
+      return Number.MAX_SAFE_INTEGER
+    }
+    let a = this.hops.length
+    let b = label.path.length
+    if (b < a) {
+      [a, b] = [b, a] // make 'a' be the smaller value
+    }
+    let lcaIdx = -1 // last common ancestor
+    for (let idx = 0; idx < a; idx++) {
+      if (this.hops[idx].port !== label.path[idx]) {
+        break
+      }
+      lcaIdx = idx
+    }
+    return a + b - 2 * (lcaIdx + 1)
   }
 
   isLoopSafe () {
@@ -68,6 +89,10 @@ class TreeInfo {
     }
     return true
   }
+
+  static from (info) {
+    return info instanceof TreeInfo ? info : new TreeInfo(info)
+  }
 }
 
 class TreeInfoHop {
@@ -109,34 +134,14 @@ class TreeExpiredInfo {
     }
   }
 
-  from (exp) {
+  static from (exp) {
     return exp instanceof TreeExpiredInfo ? exp : new TreeExpiredInfo(exp)
   }
 }
 
-class Bootstrap {
-  constructor ({ label = null }) {
-    this.label = TreeLabel.from(label)
-  }
-
-  async verify () {
-    return this.label.verify()
-  }
-
-  toBuffer () {
-    return {
-      label: this.label.toBuffer()
-    }
-  }
-
-  from (bootstrap) {
-    return bootstrap instanceof Bootstrap ? bootstrap : new Bootstrap(bootstrap)
-  }
-}
-
 class TreeLabel {
-  constructor ({ sig = null, key, root, seq = 0n, path = [] }) {
-    this.signature = sig
+  constructor ({ sign = null, key, root, seq = 0n, path = [] }) {
+    this.signature = sign
     this.key = PublicKey.from(key)
     this.root = PublicKey.from(root)
     this.seq = seq
@@ -160,7 +165,7 @@ class TreeLabel {
 
   toBuffer () {
     return {
-      sig: this.signature,
+      sign: this.signature,
       key: this.key.toBuffer(),
       root: this.root.toBuffer(),
       seq: this.seq,
@@ -168,8 +173,57 @@ class TreeLabel {
     }
   }
 
-  from (label) {
+  static from (label) {
     return label instanceof TreeLabel ? label : new TreeLabel(label)
+  }
+}
+
+class SetupToken {
+  constructor ({ source, destination, sign = null }) {
+    this.sourceKey = PublicKey.from(source)
+    this.destLabel = TreeLabel.from(destination)
+    this.signature = sign
+  }
+
+  toBuffer () {
+    return {
+      source: this.sourceKey.toBuffer(),
+      destination: this.destLabel.toBuffer(),
+      sign: this.signature
+    }
+  }
+
+
+  static from (token) {
+    return token instanceof SetupToken ? token : new SetupToken(token)
+  }
+}
+
+class Bootstrap extends TreeLabel {
+  static PACKET_TYPE = 'Bootstrap'
+}
+
+class BootstrapAck {
+  static PACKET_TYPE = 'BootstrapAck'
+
+  constructor ({ bootstrap, response }) {
+    this.request = Bootstrap.from(bootstrap)
+    this.response = SetupToken.from(response)
+  }
+
+  async verify () {
+    return (await this.request.verify()) && (await this.response.verify())
+  }
+
+  toBuffer () {
+    return {
+      bootstrap: this.request.toBuffer(),
+      response: this.response.toBuffer()
+    }
+  }
+
+  static from (ack) {
+    return ack instanceof BootstrapAck ? ack : new BootstrapAck(ack)
   }
 }
 
@@ -178,5 +232,7 @@ module.exports = {
   TreeInfoHop,
   TreeExpiredInfo,
   Bootstrap,
-  TreeLabel
+  BootstrapAck,
+  TreeLabel,
+  SetupToken
 }
