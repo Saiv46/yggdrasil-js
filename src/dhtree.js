@@ -40,6 +40,7 @@ module.exports = class DHTree {
 
     this.fixParent()
   }
+  update (data) { console.log('update', data) }
 
   handleTreeInfo (treeInfo, peer) {
     treeInfo.hseq = ++this.hseq
