@@ -61,8 +61,9 @@ module.exports = class Address {
     const buf = Buffer.alloc(Address.SIZE)
     buf[0] = Address.PREFIX
     for (let i = 0; i < key.length; i += 4) {
-      buf[1] += Math.clz32(key.readUint32BE(i))
-      if (buf[1] & 31) break
+      const clz = Math.clz32(key.readUInt32BE(i))
+      buf[1] += clz
+      if (clz !== 32) break
     }
     const bitShift = (buf[1] + 1) % 8
     const maskNext = (255 << (8 - bitShift)) & 255

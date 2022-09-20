@@ -27,7 +27,7 @@ class PeerList {
       url = new PeerURL(url)
     }
     if (PeerList.findURLEntry(this.listeners, url)) return
-    const srv = server ?? wire[url.protocol].listen(url)
+    const srv = await (server ?? wire[url.protocol].listen(url))
     srv.on('connection', socket => {
       const peer = new PeerURL(url.toString())
       peer.port = socket.remotePort
@@ -37,6 +37,7 @@ class PeerList {
     try {
       this.listeners.set(url, srv)
       await once(srv, 'listening')
+      this.log('Listening on', url)
     } catch (e) {
       this.listeners.delete(url)
       await srv.close()
@@ -53,6 +54,7 @@ class PeerList {
     const server = this.listeners.get(key)
     this.listeners.delete(key)
     await server.close()
+    this.log('Stopped listening on', url)
   }
 
   async add (url, socket = null) {
@@ -106,7 +108,7 @@ class PeerInfo {
   async connect (socket) {
     const ac = new AbortController()
     setTimeout(() => ac.abort('Timeout'), 10_000)
-    this.socket = socket ?? wire[this.info.protocol].connect(this.info)
+    this.socket = await (socket ?? wire[this.info.protocol].connect(this.info))
     this.socket.once('error', err => ac.abort(err))
     if (this.socket.connecting) {
       await once(this.socket, 'ready', { signal: ac.signal })

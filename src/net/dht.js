@@ -7,7 +7,9 @@ function generatePacketSenders () {
   for (const name in typeClasses) {
     const type = typeClasses[name]
     if (!type.PACKET_TYPE) continue
-    obj[type.PACKET_TYPE] = (packet, core, peer) => (packet.toBufferSigned ?? packet.toBuffer)(peer, core.privateKey)
+    obj[type.PACKET_TYPE] = (packet, core, peer) => packet.toBufferSigned
+      ? packet.toBufferSigned(peer, core.privateKey)
+      : packet.toBuffer()
   }
   return obj
 }
@@ -17,7 +19,7 @@ function generatePacketHandlers () {
   for (const name in typeClasses) {
     const type = typeClasses[name]
     if (!type.PACKET_TYPE) continue
-    obj[type.PACKET_TYPE] = data => new obj(data)
+    obj[type.PACKET_TYPE] = data => new type(data)
   }
   return obj
 }
@@ -31,7 +33,7 @@ class SenderMiddleware extends Transform {
     this.peer = peer
     // Hack to get ourself into the remote node's dhtree
     // They send a similar message and we'll respond with correct info
-    this.write({ type: 'Tree', data: new TreeInfo({ root: core.publicKey }) })
+    this.write({ type: 'Tree', data: new typeClasses.TreeInfo({ root: core.publicKey }) })
     if (peer.info.timeout) {
       setInterval(
         () => this.push({ type: 'Heartbeat' }),
@@ -114,7 +116,7 @@ class RecieverMiddleware extends Transform {
         this.core.dht.handleTraffic(data)
         break
     }
-    return cb()
+    return cb(null, { type, data })
   }
 }
 module.exports.RecieverMiddleware = RecieverMiddleware
