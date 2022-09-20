@@ -132,11 +132,12 @@ class PeerInfo {
     const ac = new AbortController()
     setTimeout(() => ac.abort('Timeout'), 10_000)
     try {
-      this.socket.close()
+      this.socket.end()
       await once(this.socket, 'close', { signal: ac.signal })
     } catch (e) {
       this.socket.destroy()
     } finally {
+      if (this.pipeline) this.pipeline.destroy()
       this.core.dht.removePeer(this)
     }
   }
