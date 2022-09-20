@@ -70,7 +70,6 @@ class PeerList {
       this.peers.delete(url)
       await peer.close()
       this.log('Failed to connect to', e)
-      throw new Error('Failed to add peer', { cause: e })
     }
   }
 
@@ -100,6 +99,7 @@ class PeerInfo {
     this.port = -1
     this.socket = null
     this.remoteKey = null
+    this.pipeline = null
     this.core = core
   }
 
@@ -122,6 +122,10 @@ class PeerInfo {
       assert.ok(this.info.hasValidPublicKey(this.remoteKey), 'Invalid pinned public key')
     }
     await this.core.makeProtoHandler(this)
+    this.pipeline.on('error', async (e) => {
+      this.core.peers.log('Peer error', this, e)
+      await this.core.peers.remove(this.info)
+    })
   }
 
   async close () {

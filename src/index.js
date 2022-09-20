@@ -22,17 +22,15 @@ module.exports = class Core {
 
   makeProtoHandler (peer) {
     const stream = compose(
-      new Logger('proto:out'),
+      new Logger('proto:out', peer),
       new SenderMiddleware(this, peer),
-      new Logger('net:out'),
       createSerializer(),
       new Framer(),
       peer.socket,
       new Splitter(),
       createDeserializer(),
-      new Logger('net:in'),
       new RecieverMiddleware(this, peer),
-      new Logger('proto:in')
+      new Logger('proto:in', peer)
     )
     peer.pipeline = stream
   }
