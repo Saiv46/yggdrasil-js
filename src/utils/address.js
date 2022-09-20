@@ -1,5 +1,5 @@
 const assert = require('assert')
-const { PublicKey } = require('./utils/crypto')
+const { PublicKey } = require('./crypto')
 
 module.exports = class Address {
   static PREFIX = 0x02
@@ -31,13 +31,7 @@ module.exports = class Address {
 
   get length () { return this.value.length }
   toBuffer () { return this.value }
-  toString () {
-    const str = []
-    for (let i = 0; i < this.value.length; i += 2) {
-      str.push(this.value.readUInt16BE(i).toString(16))
-    }
-    return `[${str.join(':').replace(/\b:?(?:0+:?){2,}/, '::')}]`
-  }
+  toString () { return Address.stringify(this.value) }
 
   toJSON () { return this.toString() }
   static parse (str) {
@@ -52,6 +46,14 @@ module.exports = class Address {
       }
     }
     return buf
+  }
+
+  static stringify (value) {
+    const str = []
+    for (let i = 0; i < value.length; i += 2) {
+      str.push(value.readUInt16BE(i).toString(16))
+    }
+    return `[${str.join(':').replace(/\b:?(?:0+:?){2,}/, '::')}]`
   }
 
   static fromPublicKey (key) {

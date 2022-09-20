@@ -1,4 +1,5 @@
 const { createSocket } = require('dgram')
+const Address = require('./address')
 
 module.exports = class Multicast {
   static GROUP_ADDR = '[ff02::114]'

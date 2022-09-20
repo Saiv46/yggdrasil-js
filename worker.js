@@ -1,5 +1,5 @@
 const Yggdrasil = require('./src')
-const Address = require('./src/address')
+const Address = require('./src/utils/address')
 const Config = require('./src/utils/config')
 const { VERSION } = require('./src/utils/constants')
 
