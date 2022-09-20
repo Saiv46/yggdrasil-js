@@ -1,3 +1,4 @@
 module.exports = {
-  tcp: require('./tcp')
+  tcp: require('./tcp'),
+  udp: require('./udp')
 }
