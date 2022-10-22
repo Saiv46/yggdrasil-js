@@ -1,5 +1,5 @@
-const Yggdrasil = require('./src')
-const Config = require('./src/utils/config')
+const Yggdrasil = require('../src')
+const Config = require('../src/utils/config')
 
 async function main () {
   const config = await Config.generate()
