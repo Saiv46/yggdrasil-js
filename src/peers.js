@@ -10,6 +10,7 @@ PeerURL.supportedProtocols = wire
 
 const { VERSION } = require('./utils/constants')
 const HEADER = Buffer.from('meta' + String.fromCharCode(...VERSION))
+const RECONNECT_INTERVAL = 10 * 1000
 
 class PeerList {
   constructor (core) {
@@ -18,8 +19,14 @@ class PeerList {
     this.listeners = new Map()
     this.peers = new Map()
     this.counter = 1
-    core.config.Peers?.forEach?.(v => this.add(v))
     core.config.Listen?.forEach?.(v => this.listen(v))
+    this.connectConfigPeers()
+    setInterval(() => this.connectConfigPeers(), RECONNECT_INTERVAL)
+  }
+
+  connectConfigPeers () {
+    this.core.config.Peers
+      ?.forEach?.(v => PeerList.findURLEntry(this.peers, v) || this.add(v))
   }
 
   async listen (url, server = null) {
