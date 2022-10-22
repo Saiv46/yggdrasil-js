@@ -36,7 +36,11 @@ class PublicKey extends AbstractKey {
   }
 
   less (key) {
-    return this.data.compare(key.data) < 0
+    for (let i = 0; i < this.data.length; i++) {
+      const c = this.data[i] - key.data[i]
+      if (c) return c < 0
+    }
+    return false
   }
 
   hash () {

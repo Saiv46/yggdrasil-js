@@ -67,7 +67,6 @@ module.exports = class DHTree {
       this.selfTreeInfo = null
       this.parentPeer = null
       if (this.isRootSwitching) {
-        this.log('Switching root to ourself')
         this.selfTreeInfo = new TreeInfo({ root: this.core.publicKey })
         this.broadcastTreeInfo()
         // TODO(what) We wait for a second to avoid "storms"
@@ -119,10 +118,7 @@ module.exports = class DHTree {
   fixParent () {
     const oldSelf = this.selfTreeInfo
     if (this.selfTreeInfo === null || this.core.publicKey.less(this.selfTreeInfo.root)) {
-      this.selfTreeInfo = new TreeInfo({
-        root: this.core.publicKey,
-        seq: Date.now()
-      })
+      this.selfTreeInfo = new TreeInfo({ root: this.core.publicKey })
       this.parentPeer = null
     }
     for (const [peer, info] of this.treeInfoByPeer.entries()) {
@@ -241,12 +237,12 @@ module.exports = class DHTree {
     }
     let best = this.selfTreeInfo
     let bestDist = best.distanceToLabel(dest)
-    let bestPeer
+    let bestPeer = null
     for (const [peer, info] of this.treeInfoByPeer.entries()) {
       if (!info.root.equal(dest.root) || info.seq !== dest.seq) {
         continue
       }
-      const dist = info.distanceToLabel(dest)
+      const dist = info.distanceToLabel(dest, -1)
       if (dist < bestDist || info.hopFrom().less(best.hopFrom())) {
         best = info
         bestDist = dist
@@ -333,8 +329,10 @@ module.exports = class DHTree {
 
   async handleBootstrap (data) {
     const source = data.key
+    // If we know a better prev peer for bootstraping node
     const next = this._dhtLookup(source, true)
     if (next) return next.pipeline.write({ type: 'Bootstrap', data })
+    // If not, send our BootstrapAck
     if (source.equal(this.core.publicKey) || !(await data.verify())) return
     const ack = new BootstrapAck({
       bootstrap: data,
@@ -417,7 +415,7 @@ module.exports = class DHTree {
       key: this.core.publicKey,
       root: this.selfTreeInfo.root,
       seq: this.selfTreeInfo.seq,
-      hops: this.selfTreeInfo.hops.map(v => v.port)
+      path: this.selfTreeInfo.hops.map(v => v.localPort)
     })
     await label.sign(this.core.privateKey)
     return label

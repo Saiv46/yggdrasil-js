@@ -20,11 +20,11 @@ class TreeInfo {
     return this.hops[this.hops.length - 1]?.nextPeer ?? null
   }
 
-  distanceToLabel (label) {
+  distanceToLabel (label, offset = 0) {
     if (!this.root.equal(label.root)) {
       return Number.MAX_SAFE_INTEGER
     }
-    let a = this.hops.length
+    let a = this.hops.length + offset
     let b = label.path.length
     if (b < a) {
       [a, b] = [b, a] // make 'a' be the smaller value
@@ -241,6 +241,42 @@ class BootstrapAck {
   }
 }
 
+class SetupRequest {
+  static PACKET_TYPE = 'Setup'
+  constructor ({ seq = 0n, token, sign = null }) {
+    this.seq = seq.valueOf()
+    this.setup = SetupToken.from(token)
+    this.signature = sign
+  }
+
+  toBuffer () {
+    return {
+      sign: this.signature,
+      seq: this.seq,
+      token: this.setup.toBuffer(),
+    }
+  }
+
+  async verify () {
+    return (await this.verifySignatures()) && (await this.setup.verify())
+  }
+
+  async verifySignatures () {
+    const buf = Unsigned.createPacketBuffer('setup', this.toBuffer())
+    return ed25519.verify(this.signature, buf, this.sourceKey.toBuffer())
+  }
+
+  async sign (privateKey) {
+    this.signature = await privateKey.sign(
+      Unsigned.createPacketBuffer('setup', this.toBuffer())
+    )
+  }
+
+  static from (token) {
+    return token instanceof SetupRequest ? token : new SetupRequest(token)
+  }
+}
+
 module.exports = {
   TreeInfo,
   TreeInfoHop,
@@ -248,5 +284,6 @@ module.exports = {
   Bootstrap,
   BootstrapAck,
   TreeLabel,
-  SetupToken
+  SetupToken,
+  SetupRequest
 }
