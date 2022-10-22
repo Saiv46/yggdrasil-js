@@ -32,7 +32,10 @@ module.exports = class PeerURL {
   }
 
   toString () {
-    const url = new URL(`http://${this.host}:${this.port}/${this.options}`)
+    const url = new URL('http://unknown')
+    if (this.host) url.hostname = this.host
+    if (this.port) url.port = this.port
+    if (this.options) url.pathname = this.options
     if (this.name) url.searchParams.set('sni', this.name)
     if (this.timeout !== PeerURL.timeoutDefault) {
       url.searchParams.set('timeout', this.timeout)

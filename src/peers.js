@@ -30,8 +30,8 @@ class PeerList {
     const srv = await (server ?? wire[url.protocol].listen(url))
     srv.on('connection', socket => {
       const peer = new PeerURL(url.toString())
-      peer.port = socket.remotePort
-      peer.host = socket.remoteAddress
+      if (socket.remotePort) peer.port = socket.remotePort
+      if (socket.remoteAddress) peer.host = socket.remoteAddress
       this.add(peer, socket)
     })
     try {
