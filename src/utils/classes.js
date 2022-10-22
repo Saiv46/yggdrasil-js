@@ -1,14 +1,14 @@
 const { ed25519, PublicKey } = require('../utils/crypto')
-const { Protocol } = require('../net/serialization')
+const { Unsigned } = require('../net/serialization')
 
 class TreeInfo {
   static PACKET_TYPE = 'Tree'
 
-  constructor ({ root, seq = 0n, hops = [], hseq = 0n, time = Date.now() }) {
+  constructor ({ root, seq = BigInt(Date.now()), hops = [], hseq = 0n, time = Date.now() }) {
     this.root = PublicKey.from(root)
-    this.seq = seq
+    this.seq = seq.valueOf()
     this.hops = hops.map(v => TreeInfoHop.from(v))
-    this.hseq = hseq
+    this.hseq = hseq.valueOf()
     this.time = time
   }
 
@@ -73,14 +73,14 @@ class TreeInfo {
   }
 
   async verifySignatures () {
-    const buf = Protocol.createPacketBuffer('treeInfoNoSignature', this.toBuffer())
-    let b = Protocol.sizeOf({
+    const buf = Unsigned.createPacketBuffer('treeInfo', this.toBuffer())
+    let b = Unsigned.sizeOf({
       root: this.root.toBuffer(),
       seq: this.seq,
       hops: []
-    }, 'treeInfoNoSignature')
+    }, 'treeInfo')
     for (let i = 0; i < this.hops.length; i++) {
-      b += Protocol.sizeOf(this.hops[i].toBuffer(), 'treeHopNoSignature')
+      b += Unsigned.sizeOf(this.hops[i].toBuffer(), 'treeHop')
       if (!await ed25519.verify(
         this.hops[i].signature,
         buf.subarray(0, b),
@@ -112,7 +112,7 @@ class TreeInfoHop {
 
   async _sign (treeInfoSerialized, privateKey) {
     this.signature = await privateKey.sign(
-      Protocol.createPacketBuffer('treeInfoNoSignature', treeInfoSerialized)
+      Unsigned.createPacketBuffer('treeInfo', treeInfoSerialized)
     )
   }
 
@@ -144,7 +144,7 @@ class TreeLabel {
     this.signature = sign
     this.key = PublicKey.from(key)
     this.root = PublicKey.from(root)
-    this.seq = seq
+    this.seq = seq.valueOf()
     this.path = path
   }
 
@@ -153,13 +153,13 @@ class TreeLabel {
   }
 
   async verifySignatures () {
-    const buf = Protocol.createPacketBuffer('treeLabelNoSignature', this.toBuffer())
+    const buf = Unsigned.createPacketBuffer('treeLabel', this.toBuffer())
     return ed25519.verify(this.signature, buf, this.key.toBuffer())
   }
 
   async sign (privateKey) {
     this.signature = await privateKey.sign(
-      Protocol.createPacketBuffer('treeLabelNoSignature', this.toBuffer())
+      Unsigned.createPacketBuffer('treeLabel', this.toBuffer())
     )
   }
 
@@ -198,13 +198,13 @@ class SetupToken {
   }
 
   async verifySignatures () {
-    const buf = Protocol.createPacketBuffer('setupTokenNoSignature', this.toBuffer())
+    const buf = Unsigned.createPacketBuffer('setupToken', this.toBuffer())
     return ed25519.verify(this.signature, buf, this.sourceKey.toBuffer())
   }
 
   async sign (privateKey) {
     this.signature = await privateKey.sign(
-      Protocol.createPacketBuffer('setupTokenNoSignature', this.toBuffer())
+      Unsigned.createPacketBuffer('setupToken', this.toBuffer())
     )
   }
 

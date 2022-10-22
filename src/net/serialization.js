@@ -133,8 +133,13 @@ proto.addProtocol(definition, ['wire'])
 // const compiler = new ProtoDefCompiler()
 // const proto = compiler.compileProtoDefSync()
 
+const protoNoSigning = new ProtoDef(false)
+protoNoSigning.addTypes(CustomTypes)
+protoNoSigning.addProtocol(definition, ['unsigned'])
+
 module.exports = {
   createDeserializer: () => new FullPacketParser(proto, 'packet'),
   createSerializer: () => new Serializer(proto, 'packet'),
-  Protocol: proto
+  Protocol: proto,
+  Unsigned: protoNoSigning
 }
